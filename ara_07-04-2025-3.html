@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="utf-8">
+  <title>Başlık Üstü Arama (Verisiz Başlangıç)</title>
+  <style>
+    body {
+      background-color: #0a1a33;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background-color: #0a1a33;
+      padding: 10px;
+      z-index: 10;
+      /* Başlık kısmının diğer içeriklerden üstte görünmesini sağlar */
+      width: 100%;
+    }
+
+    header h1 {
+      margin: 0;
+    }
+
+    header input,
+    header button {
+      margin-right: 10px;
+    }
+
+    header button {
+      margin-right: 10px;
+      background-color: #0a1a33;
+      color: #ffffff;
+      border: 1px solid #ffffff;
+      height: 30px;
+      /* Yüksekliği artır */
+      padding: 0 15px;
+      /* İçerik etrafındaki boşlukları da ayarlayabiliriz */
+    }
+
+    header button:hover {
+      background-color: #1a2f50;
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th,
+    td {
+      padding: 6px;
+      border-top: 1px solid #ccc;
+      border-bottom: 1px solid #ccc;
+      border-left: none;
+      border-right: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-wrap: break-word;
+    }
+
+    /* Başlıkları sabitleme */
+    th {
+      position: sticky;
+      top: 105px;
+      /* Filtre satırının hemen altına sabitleme */
+      background-color: #0a1a33;
+      color: #ffffff;
+      z-index: 5;
+      /* Başlıkların diğer içerikten önde görünmesi için */
+    }
+
+    /* Filtre satırını sabitleme */
+    tr:first-child {
+      position: sticky;
+      top: 45px;
+      /* Başlık satırının hemen altına sabitleme */
+      background-color: #0a1a33;
+      z-index: 4;
+      /* Filtrenin başlıktan önce görünmemesi için */
+    }
+
+    td {
+      background-color: #1e2f4d;
+      color: #ffffff;
+    }
+
+    tr.secilen {
+      background-color: #2e5d74;
+    }
+
+    /* 1-6. sütunlar ortalı */
+    th:nth-child(1),
+    td:nth-child(1),
+    th:nth-child(2),
+    td:nth-child(2),
+    th:nth-child(3),
+    td:nth-child(3),
+    th:nth-child(4),
+    td:nth-child(4),
+    th:nth-child(5),
+    td:nth-child(5),
+    th:nth-child(6),
+    td:nth-child(6),
+    th:nth-child(8),
+    td:nth-child(8) {
+      text-align: center;
+    }
+
+    /* 7. sütun sola dayalı */
+    th:nth-child(7),
+    td:nth-child(7) {
+      text-align: left;
+    }
+
+    /* Sütun genişlikleri */
+    th:nth-child(1),
+    td:nth-child(1) {
+      width: 20px;
+    }
+
+    th:nth-child(2),
+    td:nth-child(2) {
+      width: 50px;
+    }
+
+    th:nth-child(3),
+    td:nth-child(3) {
+      width: 80px;
+    }
+
+    th:nth-child(4),
+    td:nth-child(4) {
+      width: 40px;
+    }
+
+    th:nth-child(5),
+    td:nth-child(5) {
+      width: 90px;
+    }
+
+    th:nth-child(6),
+    td:nth-child(6) {
+      width: 90px;
+    }
+
+    th:nth-child(7),
+    td:nth-child(7) {
+      width: 290px;
+    }
+
+    th:nth-child(7),
+    td:nth-child(8) {
+      width: 70px;
+    }
+
+    /* Filtre kutularının sütun genişliğine uyması için */
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    header button:nth-child(2) {
+      margin-right: 30px;
+      /* Örneğin 30px kadar boşluk verir */
+    }
+
+    header button:nth-child(4) {
+      margin-right: 25px;
+      /* Örneğin 30px kadar boşluk verir */
+      width: 430px;
+      /* Ara butonunun genişliğini 150px olarak ayarlar */
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <input type="password" id="password" placeholder="Şifreyi girin">
+    <button onclick="dosyayiIndir()">BAĞLAN</button>
+    <button onclick="sil()">Sil</button>
+    <button onclick="filtreUygula()">Ara</button>
+    <button onclick="seciliKayitlariAc()">AÇ</button>
+    <button onclick="seciliKayitlariIndir()">İNDİR</button>
+  </header>
+
+  <main>
+    <table id="csvTablosu"></table>
+  </main>
+
+  <script>
+    const gosterilecekKolonlar = [0, 1, 2, 3, 4, 5, 7]; // 7. sütun da ekleniyor
+    let orijinalVeri = [];
+    let filtreler = [];
+    let basliklar = [];
+
+  // BAĞLAN BUTONUNA BASILDIĞINDA GERÇEKLEŞENLER -----------------------------------
+    function dosyayiIndir() {
+      const password = document.getElementById('password').value;
+      if (!password) {
+        alert("Lütfen şifreyi girin!");
+        return;
+      }
+      const csvUrl = `https://app.koofr.net/content/links/1c2d6d3e-da91-48d8-bc8b-9a9d5f236f6f/files/get/tum_dosya.csv.gif?path=%2Ftum_dosya.csv.gif&password=${password}`;
+      csvOkuVeGoster(csvUrl);
+    }
+    async function csvOkuVeGoster(csvUrl) {
+      try {
+        const response = await fetch(csvUrl);
+        if (!response.ok) throw new Error("Dosya indirilemedi. Şifreyi kontrol edin.");
+        const csvText = await response.text();
+        const satirlar = csvText.split('\n').filter(s => s.trim() !== '');
+        orijinalVeri = satirlar.map(s => s.split(';'));
+
+        basliklar = ["B.No", "Tarih", "D.No", "Tanim", "Tur", "Aciklama", "Upd"]; // Yeni başlık ekleniyor
+        filtreler = new Array(gosterilecekKolonlar.length).fill('');
+        tabloBaslikVeAramaKutulariniYaz();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+  // TABLO BAŞIKLARI VE ARAMA KUTULARI YAZILIYOR ---------------------------
+    function tabloBaslikVeAramaKutulariniYaz() { 
+      const tablo = document.getElementById('csvTablosu');
+
+      // Arama kutularındaki mevcut değerleri saklamak için bir dizi oluşturuyoruz
+      const mevcutDegerler = gosterilecekKolonlar.map((_, index) => {
+        if (index < 3) {
+          // İlk 3 sütun: Min/Max değerleri
+          return {
+            min: document.getElementById('min_deger_' + index)?.value || '',
+            max: document.getElementById('max_deger_' + index)?.value || ''
+          };
+        } else {
+          // Diğer sütunlar için arama kutularının değerini saklıyoruz
+          return {
+            filtre: document.getElementById('filtre_' + index)?.value || ''
+          };
+        }
+      });
+
+      // Son checkbox'ın mevcut durumunu sakla
+      const sonCheckboxDurumu = document.getElementById('aramaSonuCheckbox')?.checked || false;
+      
+      tablo.innerHTML = '';
+
+      // Arama satırını oluştur
+      const aramaSatiri = document.createElement('tr');
+      const cbBaslik = document.createElement('td');
+
+      // Tümünü seçme checkbox'ı
+      const secimCheckbox = document.createElement('input');
+      secimCheckbox.type = 'checkbox';
+      secimCheckbox.onclick = toggleAllSelections; // Checkbox'a tıklanırsa tüm seçimleri değiştirecek fonksiyon
+
+      cbBaslik.appendChild(secimCheckbox);
+      aramaSatiri.appendChild(cbBaslik);
+
+      basliklar.forEach((_, index) => {
+        const td = document.createElement('td');
+
+        if (index < 3) {
+          // İlk 3 sütun: Min / Max kutusu
+          const input1 = document.createElement('input');
+          input1.type = 'text';
+          input1.placeholder = 'Min';
+          input1.id = 'min_deger_' + index;
+          input1.value = mevcutDegerler[index].min; // Min değerini kutuya yerleştiriyoruz
+          td.appendChild(input1);
+
+          const input2 = document.createElement('input');
+          input2.type = 'text';
+          input2.placeholder = 'Max';
+          input2.id = 'max_deger_' + index;
+          input2.value = mevcutDegerler[index].max; // Max değerini kutuya yerleştiriyoruz
+          td.appendChild(input2);
+        } else if (index !== basliklar.length - 1) {
+          // Son sütun hariç diğerlerine tek kutu
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = 'Ara';
+          input.id = 'filtre_' + index;
+          input.value = mevcutDegerler[index].filtre; // Filtre değerini kutuya yerleştiriyoruz
+          td.appendChild(input);
+        }
+        aramaSatiri.appendChild(td);
+      });
+
+     // Son sütunun içine checkbox ve metin ekliyoruz
+      const sonCheckboxTd = document.createElement('td');
+      // Checkbox'ı oluşturuyoruz
+      const sonCheckbox = document.createElement('input');
+      sonCheckbox.type = 'checkbox';
+      sonCheckbox.id = 'aramaSonuCheckbox';
+      sonCheckbox.style.width = '62px';  // Genişlik
+      sonCheckbox.checked = sonCheckboxDurumu;  // Önceki durumu yansıtıyoruz
+      // Metni ekliyoruz
+      const metin = document.createElement('span');
+      metin.textContent = "Son 10 Gün"; // Buraya istediğiniz metni yazabilirsiniz
+      metin.style.fontSize = "12px";
+      // Checkbox ve metni aynı td'ye ekliyoruz
+      sonCheckboxTd.appendChild(sonCheckbox);
+      sonCheckboxTd.appendChild(metin);
+      // Son sütuna checkbox ve metin ekliyoruz
+      aramaSatiri.lastElementChild.appendChild(sonCheckboxTd); 
+      // Sonra arama satırını tabloya ekliyoruz
+      tablo.appendChild(aramaSatiri);
+
+      // Başlık satırı
+      const headerRow = document.createElement('tr');
+      const cbTh = document.createElement('th');
+      cbTh.textContent = '\u2714'; // ✅ (onay işareti)
+      headerRow.appendChild(cbTh);
+      basliklar.forEach((text, index) => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.onclick = () => siralama(index);
+        headerRow.appendChild(th);
+      });
+
+      tablo.appendChild(headerRow);
+    }
+
+ // ARA BUTONUNA BASILDIĞINDA GERÇEKLEŞENLER (filtreUygula & tabloyuYaz -------------
+    function filtreUygula() {
+      let filtreAktif = false;
+
+      // Son 10 gün için tanimlamalar
+      const sonCheckbox = document.getElementById('aramaSonuCheckbox')?.checked || false;
+
+      // Min-Max kutuları (0-5 arası indexli)
+      const min0 = document.getElementById('min_deger_0').value;
+      const max0 = document.getElementById('max_deger_0').value;
+      const min1 = document.getElementById('min_deger_1').value;
+      const max1 = document.getElementById('max_deger_1').value;
+      const min2 = document.getElementById('min_deger_2').value;
+      const max2 = document.getElementById('max_deger_2').value;
+
+      // Arama kutuları (i = 3, 4, 5 olacak şekilde)
+      const filtre3 = document.getElementById('filtre_3')?.value;
+      const filtre4 = document.getElementById('filtre_4')?.value;
+      const filtre5 = document.getElementById('filtre_5')?.value;
+
+      // Tek tek kontrol (döngü yok)
+      if (min2) filtreAktif = true;
+      if (max2) filtreAktif = true;
+      if (min2 == 1 || min2 == "1" || max2 == 1 || max2 == "1") filtreAktif = false;
+      if (min0) filtreAktif = true;
+      if (max0) filtreAktif = true;
+      if (min1) filtreAktif = true;
+      if (max1) filtreAktif = true;
+      if (filtre3) filtreAktif = true;
+      if (filtre4) filtreAktif = true;
+      if (filtre5) filtreAktif = true;
+      if (sonCheckbox) filtreAktif = true;
+
+      // Eğer filtre kutularının hepsi boşsa çık
+      if (!filtreAktif) return;
+
+      // Filtre uygulanacak veri
+      const filtrelenmis = orijinalVeri.filter(satir =>
+        gosterilecekKolonlar.every((kolonIndeks, i) => {
+          const hucre = satir[kolonIndeks];
+
+          if (i < 3) {
+            const minDeger = parseFloat(document.getElementById('min_deger_' + i).value);
+            const maxDeger = parseFloat(document.getElementById('max_deger_' + i).value);
+            const sayi = parseFloat(hucre) || NaN;
+
+            if (!isNaN(minDeger) && !isNaN(maxDeger)) {
+              return sayi >= minDeger && sayi <= maxDeger;
+            } else if (!isNaN(minDeger)) {
+              return sayi >= minDeger;
+            } else if (!isNaN(maxDeger)) {
+              return sayi <= maxDeger;
+            } else {
+              return true;
+            }
+          } else {
+            const filtreMetni = document.getElementById('filtre_' + i)?.value?.toLowerCase() || '';
+            return hucre?.toLowerCase().includes(filtreMetni);
+          }
+        })
+      )
+      .filter(satir => satir[2] !== "113") // 3. sütunda 113 olan satırları filtrele
+      .filter(satir => {
+        if (sonCheckbox) {
+          return tarihCikar(satir[7], 0) > tarihCikar(new Date().toLocaleString('tr-TR'), 12)
+        }
+          return true; // Checkbox işaretli değilse, tüm satırları döndür
+      });
+
+      // Filtrelenmiş veriyi global değişkene atıyoruz
+      filtrelenmisVeri = filtrelenmis;
+
+      // Sıralamayı sıfırla
+      artanSiralama = false;
+
+      // Tabloyu güncelle
+      tabloyuYaz(filtrelenmis);
+
+      // İlk kolona göre sıralama
+      siralama(1);
+    }
+
+    function tabloyuYaz(veri) {
+      tabloBaslikVeAramaKutulariniYaz();
+      const tablo = document.getElementById('csvTablosu');
+
+      veri.forEach((satir) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute("data-index", orijinalVeri.indexOf(satir));
+
+        const cbTd = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        cbTd.appendChild(checkbox);
+        tr.appendChild(cbTd);
+
+        // TABLOYA TIKLANDIĞINDA ---------
+        let tooltip;
+
+        tr.addEventListener("mousedown", (e) => {
+          if (e.target.type !== 'checkbox') {
+            tr.classList.toggle("secilen");
+
+            // 3. kolonun verisini almak
+            const tooltipVerisi = satir[gosterilecekKolonlar[2]];
+        
+            // Tooltip'i oluştur
+            const tooltip = document.createElement('span');
+            tooltip.textContent = tooltipVerisi;
+            tooltip.style.position = 'absolute';
+            tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
+            tooltip.style.color = 'white';
+            tooltip.style.padding = '5px';
+            tooltip.style.borderRadius = '3px';
+            tooltip.style.fontSize = '12px';
+            tooltip.style.zIndex = '1000';
+
+            // Sayfa kaydırma dikkate alındığında doğru konum
+            const rect = tr.getBoundingClientRect();
+            tooltip.style.top = `${rect.top + window.scrollY + 6}px`;  // Kaydırma ekleniyor
+            tooltip.style.left = `${rect.left + window.scrollX + 50}px`;  // Kaydırma ekleniyor
+
+            document.body.appendChild(tooltip);
+
+            tr.addEventListener("mouseup", () => {
+              tooltip?.remove();
+            });
+          }
+        });
+
+        gosterilecekKolonlar.forEach((kolonIndeks, index) => {
+          const td = document.createElement('td');
+          let hucreVerisi = satir[kolonIndeks];
+
+          if (index === gosterilecekKolonlar.length - 1) {
+            // Son sütun: Tarih ve saati sadece tarihe çevir
+            const tarih = parseDate(hucreVerisi);
+            if (tarih) {
+              hucreVerisi = formatDate(tarih);
+            }
+          }
+
+          td.textContent = hucreVerisi;
+          tr.appendChild(td);
+        });
+
+        tr.ondblclick = () => pdfAc(satir);
+        tablo.appendChild(tr);
+      });
+    }
+
+    // TARİH ÇIKARMA FONKSİYONU
+    function tarihCikar(tarihStr, gunSayisi) {
+      const tarih = new Date(tarihStr.split(' ')[0].split('.').reverse().join('-') + 'T' + tarihStr.split(' ')[1]);
+      tarih.setDate(tarih.getDate() - gunSayisi);
+      return tarih; // ✅ Date nesnesi döner
+    } 
+
+    // DD.MM.YYYY formatındaki tarihi parse eden fonksiyon
+    function parseDate(dateStr) {
+      const parts = dateStr.split('.');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Ayları 0'dan başlatıyoruz
+        const year = parseInt(parts[2], 10);
+        
+        // Geçerli bir tarih olup olmadığını kontrol et
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+      return null; // Geçerli bir tarih değilse null döndürüyoruz
+    }
+    function formatDate(date) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`; // DD.MM.YYYY formatında döndür
+    }
+
+   // SIRALAMA YAPILIYOR 
+    let artanSiralama = false;
+    function siralama(gosterilenIndex) {
+      const kolonIndeks = gosterilecekKolonlar[gosterilenIndex];
+      const veri = [...filtrelenmisVeri]; // Burada orijinalVeri yerine filtrelenmiş veri kullanılıyor
+
+      veri.sort((a, b) => {
+        const aVal = a[kolonIndeks];
+        const bVal = b[kolonIndeks];
+
+        // Eğer sütun 2. ise (tarih sütunu), tarihi karşılaştıralım
+        if (kolonIndeks === 1) { 
+          const aDate = parseDate(aVal);
+          const bDate = parseDate(bVal);
+          
+          // Eğer her iki değer de geçerli bir tarihse, tarih sıralaması yapalım
+          if (aDate && bDate) {
+            return artanSiralama ? aDate - bDate : bDate - aDate;
+          }
+        }
+
+        // Sayısal değer karşılaştırması yapalım
+        const aSayi = parseFloat(aVal);
+        const bSayi = parseFloat(bVal);
+
+        if (!isNaN(aSayi) && !isNaN(bSayi)) {
+          return artanSiralama ? aSayi - bSayi : bSayi - aSayi;
+        } else {
+          // Eğer sayı değilse, alfabetik sıralama yapalım
+          const aStr = aVal?.toLowerCase() || '';
+          const bStr = bVal?.toLowerCase() || '';
+          return artanSiralama ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+        }
+      });
+
+      artanSiralama = !artanSiralama;
+      tabloyuYaz(veri);  // Burada filtrelenmiş veri sıralandıktan sonra tabloyu yazdırıyoruz
+    }
+
+  // SEÇİLİ KAYITLARI AÇMA VE İNDİRME ----------------------------
+    function seciliKayitlariAc() {
+      document.querySelectorAll("#csvTablosu tr").forEach(tr => {
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.checked) {
+          const index = tr.getAttribute('data-index');
+          if (index !== null) {
+            pdfAc(orijinalVeri[Number(index)]);
+          }
+        }
+      });
+    }
+
+    function pdfAc(satir, indir = false) {
+      const ilkSayi = satir[0] || "0";
+      const grup = getDosyaGrubu(ilkSayi);
+
+      for (let i = 38; i < satir.length; i++) {
+        let dosya = satir[i];
+        if (!dosya || !dosya.trim()) break;
+
+        let uzanti = dosya.split('.').pop().toLowerCase();
+        if (!["pdf", "jpg", "mp4"].includes(uzanti)) {
+          dosya += ".gif";
+        }
+
+        let baseUrl = "https://app.koofr.net/content/links/050c0da9-61cf-41fd-b80a-baa65f0ba844/files/get/";
+        let fullLink = `${baseUrl}${dosya}?path=%2Fgrf_file_${grup}%2F${dosya}`;
+        if (indir) fullLink += "&force";
+
+        window.open(fullLink, '_blank');
+      }
+    }
+
+    function seciliKayitlariIndir() {
+      document.querySelectorAll("#csvTablosu tr").forEach(tr => {
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.checked) {
+          const index = tr.getAttribute('data-index');
+          if (index !== null) {
+            pdfAc(orijinalVeri[Number(index)], true);
+          }
+        }
+      });
+    }
+
+    function getDosyaGrubu(sayiStr) {
+      const sayi = parseInt(sayiStr.replace(/\D/g, ''), 10);
+      if (isNaN(sayi)) return "00000-00000";
+      const alt = Math.floor(sayi / 2500) * 2500;
+      const ust = alt + 2499;
+      return `${alt}-${ust}`;
+    }
+
+  // DİĞER FONKSİYONLAR ------------------------
+    // Tüm satırları seçip temizlemek için fonksiyon
+    function toggleAllSelections() {
+      const isChecked = event.target.checked; // Checkbox'ın seçili olup olmadığını alıyoruz
+
+      document.querySelectorAll("#csvTablosu tr").forEach(tr => {
+        const checkbox = tr.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+          checkbox.checked = isChecked; // Eğer tümü seçiliyse, tüm checkbox'ları işaretle; değilse temizle
+        }
+      });
+    }
+
+    function sil() {
+      // Filtreleme alanlarını temizleyelim
+      document.querySelectorAll('input[type="text"]').forEach(input => {
+        input.value = ''; // Her bir input alanının değerini temizliyoruz
+      });
+    }
+    
+  </script>
+</body>
+
+</html>
